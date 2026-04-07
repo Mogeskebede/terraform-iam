@@ -1,33 +1,222 @@
 
-# DATA SOURCES
+# VPC + NETWORKING (us-east-1)
 
+resource "aws_vpc" "use1" {
+  cidr_block           = "10.10.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 
-data "aws_vpc" "default" {
-  default = true
+  tags = { Name = "use1-vpc" }
 }
 
-data "aws_vpc" "default_use2" {
-  provider = aws.use2
-  default  = true
+resource "aws_internet_gateway" "use1_igw" {
+  vpc_id = aws_vpc.use1.id
+  tags   = { Name = "use1-igw" }
 }
 
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
+resource "aws_subnet" "use1_public_a" {
+  vpc_id                  = aws_vpc.use1.id
+  cidr_block              = "10.10.1.0/24"
+  availability_zone       = "us-east-1a"
+  map_public_ip_on_launch = true
+  tags = { Name = "use1-public-a" }
+}
+
+resource "aws_subnet" "use1_public_b" {
+  vpc_id                  = aws_vpc.use1.id
+  cidr_block              = "10.10.2.0/24"
+  availability_zone       = "us-east-1b"
+  map_public_ip_on_launch = true
+  tags = { Name = "use1-public-b" }
+}
+
+resource "aws_subnet" "use1_private_a" {
+  vpc_id            = aws_vpc.use1.id
+  cidr_block        = "10.10.11.0/24"
+  availability_zone = "us-east-1a"
+  tags = { Name = "use1-private-a" }
+}
+
+resource "aws_subnet" "use1_private_b" {
+  vpc_id            = aws_vpc.use1.id
+  cidr_block        = "10.10.12.0/24"
+  availability_zone = "us-east-1b"
+  tags = { Name = "use1-private-b" }
+}
+
+resource "aws_eip" "use1_nat_eip" {
+  vpc  = true
+  tags = { Name = "use1-nat-eip" }
+}
+
+resource "aws_nat_gateway" "use1_nat" {
+  allocation_id = aws_eip.use1_nat_eip.id
+  subnet_id     = aws_subnet.use1_public_a.id
+
+  tags = { Name = "use1-nat" }
+}
+
+resource "aws_route_table" "use1_public_rt" {
+  vpc_id = aws_vpc.use1.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.use1_igw.id
   }
+
+  tags = { Name = "use1-public-rt" }
 }
 
-data "aws_subnets" "default_use2" {
-  provider = aws.use2
+resource "aws_route_table_association" "use1_public_a_assoc" {
+  subnet_id      = aws_subnet.use1_public_a.id
+  route_table_id = aws_route_table.use1_public_rt.id
+}
 
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default_use2.id]
+resource "aws_route_table_association" "use1_public_b_assoc" {
+  subnet_id      = aws_subnet.use1_public_b.id
+  route_table_id = aws_route_table.use1_public_rt.id
+}
+
+resource "aws_route_table" "use1_private_rt" {
+  vpc_id = aws_vpc.use1.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.use1_nat.id
   }
+
+  tags = { Name = "use1-private-rt" }
 }
 
-data "aws_ami" "amazon_linux_1" {
+resource "aws_route_table_association" "use1_private_a_assoc" {
+  subnet_id      = aws_subnet.use1_private_a.id
+  route_table_id = aws_route_table.use1_private_rt.id
+}
+
+resource "aws_route_table_association" "use1_private_b_assoc" {
+  subnet_id      = aws_subnet.use1_private_b.id
+  route_table_id = aws_route_table.use1_private_rt.id
+}
+
+
+# VPC + NETWORKING (us-east-2)
+
+
+resource "aws_vpc" "use2" {
+  provider              = aws.use2
+  cidr_block            = "10.20.0.0/16"
+  enable_dns_support    = true
+  enable_dns_hostnames  = true
+  tags                  = { Name = "use2-vpc" }
+}
+
+resource "aws_internet_gateway" "use2_igw" {
+  provider = aws.use2
+  vpc_id   = aws_vpc.use2.id
+  tags     = { Name = "use2-igw" }
+}
+
+resource "aws_subnet" "use2_public_a" {
+  provider               = aws.use2
+  vpc_id                 = aws_vpc.use2.id
+  cidr_block             = "10.20.1.0/24"
+  availability_zone      = "us-east-2a"
+  map_public_ip_on_launch = true
+  tags = { Name = "use2-public-a" }
+}
+
+resource "aws_subnet" "use2_public_b" {
+  provider               = aws.use2
+  vpc_id                 = aws_vpc.use2.id
+  cidr_block             = "10.20.2.0/24"
+  availability_zone      = "us-east-2b"
+  map_public_ip_on_launch = true
+  tags = { Name = "use2-public-b" }
+}
+
+resource "aws_subnet" "use2_private_a" {
+  provider          = aws.use2
+  vpc_id            = aws_vpc.use2.id
+  cidr_block        = "10.20.11.0/24"
+  availability_zone = "us-east-2a"
+  tags = { Name = "use2-private-a" }
+}
+
+resource "aws_subnet" "use2_private_b" {
+  provider          = aws.use2
+  vpc_id            = aws_vpc.use2.id
+  cidr_block        = "10.20.12.0/24"
+  availability_zone = "us-east-2b"
+  tags = { Name = "use2-private-b" }
+}
+
+resource "aws_eip" "use2_nat_eip" {
+  provider = aws.use2
+  vpc      = true
+  tags     = { Name = "use2-nat-eip" }
+}
+
+resource "aws_nat_gateway" "use2_nat" {
+  provider      = aws.use2
+  allocation_id = aws_eip.use2_nat_eip.id
+  subnet_id     = aws_subnet.use2_public_a.id
+
+  tags = { Name = "use2-nat" }
+}
+
+resource "aws_route_table" "use2_public_rt" {
+  provider = aws.use2
+  vpc_id   = aws_vpc.use2.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.use2_igw.id
+  }
+
+  tags = { Name = "use2-public-rt" }
+}
+
+resource "aws_route_table_association" "use2_public_a_assoc" {
+  provider       = aws.use2
+  subnet_id      = aws_subnet.use2_public_a.id
+  route_table_id = aws_route_table.use2_public_rt.id
+}
+
+resource "aws_route_table_association" "use2_public_b_assoc" {
+  provider       = aws.use2
+  subnet_id      = aws_subnet.use2_public_b.id
+  route_table_id = aws_route_table.use2_public_rt.id
+}
+
+resource "aws_route_table" "use2_private_rt" {
+  provider = aws.use2
+  vpc_id   = aws_vpc.use2.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.use2_nat.id
+  }
+
+  tags = { Name = "use2-private-rt" }
+}
+
+resource "aws_route_table_association" "use2_private_a_assoc" {
+  provider       = aws.use2
+  subnet_id      = aws_subnet.use2_private_a.id
+  route_table_id = aws_route_table.use2_private_rt.id
+}
+
+resource "aws_route_table_association" "use2_private_b_assoc" {
+  provider       = aws.use2
+  subnet_id      = aws_subnet.use2_private_b.id
+  route_table_id = aws_route_table.use2_private_rt.id
+}
+
+
+# AMIs
+
+
+data "aws_ami" "amazon_linux_use1" {
   most_recent = true
   owners      = ["amazon"]
 
@@ -37,7 +226,7 @@ data "aws_ami" "amazon_linux_1" {
   }
 }
 
-data "aws_ami" "amazon_linux_2" {
+data "aws_ami" "amazon_linux_use2" {
   provider    = aws.use2
   most_recent = true
   owners      = ["amazon"]
@@ -52,9 +241,9 @@ data "aws_ami" "amazon_linux_2" {
 # SECURITY GROUPS
 
 
-resource "aws_security_group" "sg_use1" {
-  name   = "use1-sg"
-  vpc_id = data.aws_vpc.default.id
+resource "aws_security_group" "use1_alb_sg" {
+  name   = "use1-alb-sg"
+  vpc_id = aws_vpc.use1.id
 
   ingress {
     from_port   = 80
@@ -69,12 +258,35 @@ resource "aws_security_group" "sg_use1" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = { Name = "use1-alb-sg" }
 }
 
-resource "aws_security_group" "use2_sg" {
+resource "aws_security_group" "use1_ec2_sg" {
+  name   = "use1-ec2-sg"
+  vpc_id = aws_vpc.use1.id
+
+  ingress {
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.use1_alb_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "use1-ec2-sg" }
+}
+
+resource "aws_security_group" "use2_alb_sg" {
   provider = aws.use2
-  name     = "use2-sg"
-  vpc_id   = data.aws_vpc.default_use2.id
+  name     = "use2-alb-sg"
+  vpc_id   = aws_vpc.use2.id
 
   ingress {
     from_port   = 80
@@ -89,10 +301,34 @@ resource "aws_security_group" "use2_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = { Name = "use2-alb-sg" }
+}
+
+resource "aws_security_group" "use2_ec2_sg" {
+  provider = aws.use2
+  name     = "use2-ec2-sg"
+  vpc_id   = aws_vpc.use2.id
+
+  ingress {
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.use2_alb_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = { Name = "use2-ec2-sg" }
 }
 
 
-# USER DATA (WITH HEALTH ENDPOINT + EXTENDED SERVICES)
+# USER DATA
 
 
 locals {
@@ -104,7 +340,6 @@ dnf install -y httpd
 systemctl start httpd
 systemctl enable httpd
 
-# Health check endpoint
 echo "OK" > /var/www/html/health
 
 cat <<'HTML' > /var/www/html/index.html
@@ -114,9 +349,7 @@ cat <<'HTML' > /var/www/html/index.html
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>AWS Services Overview</title>
-
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
 <style>
 body {
   margin:0;
@@ -170,15 +403,12 @@ h1 { text-align:center; }
 }
 </style>
 </head>
-
 <body>
-
 <div class="container">
   <h1>AWS Services Overview</h1>
   <div class="subtitle">Deployed by Moges Kebedew</div>
   <div class="grid" id="serviceGrid"></div>
 </div>
-
 <script>
 const services = [
  { name:"EC2",           desc:"Virtual servers in the cloud",          icon:"fa-server",        link:"https://aws.amazon.com/ec2/" },
@@ -208,14 +438,11 @@ const services = [
  { name:"Secrets Manager",desc:"Secure secret storage",                icon:"fa-key",           link:"https://aws.amazon.com/secrets-manager/" },
  { name:"KMS",           desc:"Key management service",                icon:"fa-lock",          link:"https://aws.amazon.com/kms/" }
 ];
-
 const grid = document.getElementById("serviceGrid");
-
 services.forEach(s => {
   const card = document.createElement("div");
   card.className = "card";
   card.onclick = () => window.open(s.link, "_blank");
-
   card.innerHTML = `
     <div class="icon"><i class="fa $${s.icon}"></i></div>
     <div class="name">$${s.name}</div>
@@ -224,7 +451,6 @@ services.forEach(s => {
   grid.appendChild(card);
 });
 </script>
-
 </body>
 </html>
 HTML
@@ -232,60 +458,64 @@ EOF
 }
 
 
-# EC2 INSTANCES
+# EC2 INSTANCES (PRIVATE SUBNETS)
 
 
-resource "aws_instance" "ec2_use1" {
-  ami                    = data.aws_ami.amazon_linux_1.id
-  instance_type          = "t3.micro"
-  subnet_id              = data.aws_subnets.default.ids[0]
-  vpc_security_group_ids = [aws_security_group.sg_use1.id]
-  associate_public_ip_address = true
-  user_data              = local.user_data
+resource "aws_instance" "use1_ec2" {
+  ami                         = data.aws_ami.amazon_linux_use1.id
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.use1_private_a.id
+  vpc_security_group_ids      = [aws_security_group.use1_ec2_sg.id]
+  user_data                   = local.user_data
+  user_data_replace_on_change = true
 
   tags = { Name = "ec2-us-east-1" }
 }
 
-resource "aws_instance" "ec2_use2" {
-  provider               = aws.use2
-  ami                    = data.aws_ami.amazon_linux_2.id
-  instance_type          = "t3.micro"
-  subnet_id              = data.aws_subnets.default_use2.ids[0]
-  vpc_security_group_ids = [aws_security_group.use2_sg.id]
-  associate_public_ip_address = true
-  user_data              = local.user_data
+resource "aws_instance" "use2_ec2" {
+  provider                    = aws.use2
+  ami                         = data.aws_ami.amazon_linux_use2.id
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.use2_private_a.id
+  vpc_security_group_ids      = [aws_security_group.use2_ec2_sg.id]
+  user_data                   = local.user_data
+  user_data_replace_on_change = true
 
   tags = { Name = "ec2-us-east-2" }
 }
 
 
-# LOAD BALANCERS
+# ALBs (PUBLIC SUBNETS)
 
 
-resource "aws_lb" "alb_use1" {
-  name               = "alb-use1"
+resource "aws_lb" "use1_alb" {
+  name               = "use1-alb"
   load_balancer_type = "application"
-  subnets            = data.aws_subnets.default.ids
-  security_groups    = [aws_security_group.sg_use1.id]
+  subnets            = [aws_subnet.use1_public_a.id, aws_subnet.use1_public_b.id]
+  security_groups    = [aws_security_group.use1_alb_sg.id]
+
+  tags = { Name = "use1-alb" }
 }
 
-resource "aws_lb" "alb_use2" {
+resource "aws_lb" "use2_alb" {
   provider           = aws.use2
-  name               = "alb-use2"
+  name               = "use2-alb"
   load_balancer_type = "application"
-  subnets            = data.aws_subnets.default_use2.ids
-  security_groups    = [aws_security_group.use2_sg.id]
+  subnets            = [aws_subnet.use2_public_a.id, aws_subnet.use2_public_b.id]
+  security_groups    = [aws_security_group.use2_alb_sg.id]
+
+  tags = { Name = "use2-alb" }
 }
 
 
-# TARGET GROUPS
+# TARGET GROUPS + ATTACHMENTS
 
 
-resource "aws_lb_target_group" "tg_use1" {
-  name     = "tg-use1"
+resource "aws_lb_target_group" "use1_tg" {
+  name     = "use1-tg"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default.id
+  vpc_id   = aws_vpc.use1.id
 
   health_check {
     enabled             = true
@@ -298,14 +528,16 @@ resource "aws_lb_target_group" "tg_use1" {
     timeout             = 5
     interval            = 30
   }
+
+  tags = { Name = "use1-tg" }
 }
 
-resource "aws_lb_target_group" "tg_use2" {
+resource "aws_lb_target_group" "use2_tg" {
   provider = aws.use2
-  name     = "tg-use2"
+  name     = "use2-tg"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default_use2.id
+  vpc_id   = aws_vpc.use2.id
 
   health_check {
     enabled             = true
@@ -318,22 +550,20 @@ resource "aws_lb_target_group" "tg_use2" {
     timeout             = 5
     interval            = 30
   }
+
+  tags = { Name = "use2-tg" }
 }
 
-
-# TARGET GROUP ATTACHMENTS
-
-
-resource "aws_lb_target_group_attachment" "attach_use1" {
-  target_group_arn = aws_lb_target_group.tg_use1.arn
-  target_id        = aws_instance.ec2_use1.id
+resource "aws_lb_target_group_attachment" "use1_attach" {
+  target_group_arn = aws_lb_target_group.use1_tg.arn
+  target_id        = aws_instance.use1_ec2.id
   port             = 80
 }
 
-resource "aws_lb_target_group_attachment" "attach_use2" {
+resource "aws_lb_target_group_attachment" "use2_attach" {
   provider         = aws.use2
-  target_group_arn = aws_lb_target_group.tg_use2.arn
-  target_id        = aws_instance.ec2_use2.id
+  target_group_arn = aws_lb_target_group.use2_tg.arn
+  target_id        = aws_instance.use2_ec2.id
   port             = 80
 }
 
@@ -341,26 +571,26 @@ resource "aws_lb_target_group_attachment" "attach_use2" {
 # LISTENERS
 
 
-resource "aws_lb_listener" "listener_use1" {
-  load_balancer_arn = aws_lb.alb_use1.arn
+resource "aws_lb_listener" "use1_listener" {
+  load_balancer_arn = aws_lb.use1_alb.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.tg_use1.arn
+    target_group_arn = aws_lb_target_group.use1_tg.arn
   }
 }
 
-resource "aws_lb_listener" "listener_use2" {
+resource "aws_lb_listener" "use2_listener" {
   provider          = aws.use2
-  load_balancer_arn = aws_lb.alb_use2.arn
+  load_balancer_arn = aws_lb.use2_alb.arn
   port              = 80
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.tg_use2.arn
+    target_group_arn = aws_lb_target_group.use2_tg.arn
   }
 }
 
@@ -384,21 +614,21 @@ resource "aws_globalaccelerator_listener" "ga_listener" {
   }
 }
 
-resource "aws_globalaccelerator_endpoint_group" "eg_use1" {
+resource "aws_globalaccelerator_endpoint_group" "ga_use1_eg" {
   listener_arn = aws_globalaccelerator_listener.ga_listener.id
 
   endpoint_configuration {
-    endpoint_id = aws_lb.alb_use1.arn
+    endpoint_id = aws_lb.use1_alb.arn
     weight      = 100
   }
 }
 
-resource "aws_globalaccelerator_endpoint_group" "eg_use2" {
+resource "aws_globalaccelerator_endpoint_group" "ga_use2_eg" {
   provider     = aws.use2
   listener_arn = aws_globalaccelerator_listener.ga_listener.id
 
   endpoint_configuration {
-    endpoint_id = aws_lb.alb_use2.arn
+    endpoint_id = aws_lb.use2_alb.arn
     weight      = 100
   }
 }
