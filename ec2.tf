@@ -283,6 +283,7 @@ resource "aws_globalaccelerator_endpoint_group" "eg_use1" {
 }
 
 resource "aws_globalaccelerator_endpoint_group" "eg_use2" {
+  provider    = aws.use2   
   listener_arn = aws_globalaccelerator_listener.ga_listener.id
 
   endpoint_configuration {
