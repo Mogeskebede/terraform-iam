@@ -8,12 +8,6 @@ pipeline {
 
     stages {
 
-        stage('Checkout') {
-            steps {
-                git 'https://github.com/Mogeskebede/terraform-iam.git'
-            }
-        }
-
         stage('Get AWS Credentials') {
             steps {
                 script {
