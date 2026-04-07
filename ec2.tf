@@ -1,5 +1,17 @@
-# DATA SOURCES (DEFAULT VPC + SUBNETS)
 
+# PROVIDERS
+
+provider "aws" {
+  region = "us-east-1"
+}
+
+provider "aws" {
+  alias  = "use2"
+  region = "us-east-2"
+}
+
+
+# DATA SOURCES
 
 data "aws_vpc" "default" {
   default = true
@@ -36,7 +48,6 @@ data "aws_ami" "amazon_linux_2" {
 
 # SECURITY GROUPS
 
-
 resource "aws_security_group" "sg_use1" {
   name   = "use1-sg"
   vpc_id = data.aws_vpc.default.id
@@ -56,9 +67,9 @@ resource "aws_security_group" "sg_use1" {
   }
 }
 
-resource "aws_security_group" "use2-sg" {
+resource "aws_security_group" "use2_sg" {
   provider = aws.use2
-  name     = "sg-use2"
+  name     = "use2-sg"
   vpc_id   = data.aws_vpc.default.id
 
   ingress {
@@ -77,8 +88,7 @@ resource "aws_security_group" "use2-sg" {
 }
 
 
-# USER DATA (YOUR HTML DASHBOARD)
-
+# USER DATA
 
 locals {
   user_data = <<-EOF
@@ -207,12 +217,12 @@ const services = [
     { name: "Route 53", desc: "DNS Service", link: "https://aws.amazon.com/route53/" }
 ];
 
-// Simple AWS-style inline SVG icon generator
+// FIX: Escape Terraform interpolation using $$
 function getIcon(name) {
     return `
     <svg class="icon" viewBox="0 0 24 24" fill="none">
         <rect x="3" y="3" width="18" height="18" rx="4" fill="#FF9900"/>
-        <text x="50%" y="55%" text-anchor="middle" fill="white" font-size="7" font-family="Arial">${name}</text>
+        <text x="50%" y="55%" text-anchor="middle" fill="white" font-size="7" font-family="Arial">$$\{name}</text>
     </svg>`;
 }
 
@@ -224,9 +234,9 @@ services.forEach(s => {
     card.onclick = () => window.open(s.link, "_blank");
 
     card.innerHTML = `
-        ${getIcon(s.name)}
-        <div class="name">${s.name}</div>
-        <div class="desc">${s.desc}</div>
+        $${getIcon("$$\{s.name}")} 
+        <div class="name">$$\{s.name}</div>
+        <div class="desc">$$\{s.desc}</div>
     `;
 
     grid.appendChild(card);
@@ -235,20 +245,19 @@ services.forEach(s => {
 
 </body>
 </html>
+HTML
 EOF
 }
 
 
 # EC2 INSTANCES
 
-
 resource "aws_instance" "ec2_use1" {
-  ami                    = data.aws_ami.amazon_linux_1.id
-  instance_type          = "t3.micro"
-  subnet_id              = data.aws_subnets.default.ids[0]
-  vpc_security_group_ids = [aws_security_group.sg_use1.id]
-
-  user_data = local.user_data
+  ami                         = data.aws_ami.amazon_linux_1.id
+  instance_type               = "t3.micro"
+  subnet_id                   = data.aws_subnets.default.ids[0]
+  vpc_security_group_ids      = [aws_security_group.sg_use1.id]
+  user_data                   = local.user_data
 
   tags = {
     Name = "ec2-us-east-1"
@@ -256,13 +265,12 @@ resource "aws_instance" "ec2_use1" {
 }
 
 resource "aws_instance" "ec2_use2" {
-  provider               = aws.use2
-  ami                    = data.aws_ami.amazon_linux_2.id
-  instance_type          = "t3.micro"
-  subnet_id              = data.aws_subnets.default.ids[0]
-  vpc_security_group_ids = [aws_security_group.use2-sg.id]
-
-  user_data = local.user_data
+  provider                    = aws.use2
+  ami                         = data.aws_ami.amazon_linux_2.id
+  instance_type               = "t3.micro"
+  subnet_id                   = data.aws_subnets.default.ids[0]
+  vpc_security_group_ids      = [aws_security_group.use2_sg.id]
+  user_data                   = local.user_data
 
   tags = {
     Name = "ec2-us-east-2"
@@ -270,8 +278,7 @@ resource "aws_instance" "ec2_use2" {
 }
 
 
-# ALB - US EAST 1
-
+# ALB - us-east-1
 
 resource "aws_lb" "alb_use1" {
   name               = "alb-use1"
@@ -305,15 +312,14 @@ resource "aws_lb_listener" "listener_use1" {
 }
 
 
-# ALB - US EAST 2
-
+# ALB - us-east-2
 
 resource "aws_lb" "alb_use2" {
   provider           = aws.use2
   name               = "alb-use2"
   load_balancer_type = "application"
   subnets            = data.aws_subnets.default.ids
-  security_groups    = [aws_security_group.use2-sg.id]
+  security_groups    = [aws_security_group.use2_sg.id]
 }
 
 resource "aws_lb_target_group" "tg_use2" {
@@ -345,7 +351,6 @@ resource "aws_lb_listener" "listener_use2" {
 
 
 # GLOBAL ACCELERATOR
-
 
 resource "aws_globalaccelerator_accelerator" "ga" {
   name            = "multi-region-ga"
@@ -383,7 +388,6 @@ resource "aws_globalaccelerator_endpoint_group" "eg_use2" {
 
 
 # OUTPUT
-
 
 output "global_accelerator_dns" {
   value = aws_globalaccelerator_accelerator.ga.dns_name
