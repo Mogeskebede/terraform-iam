@@ -1,26 +1,23 @@
 
-# Get Latest Amazon Linux AMI
+# PROVIDERS
 
-data "aws_ami" "amazon_linux" {
-  most_recent = true
 
-  owners = ["amazon"]
+provider "aws" {
+  region = "us-east-1"
+}
 
-  filter {
-    name   = "name"
-    values = ["al2023-ami-*-x86_64"]
-  }
+provider "aws" {
+  alias  = "use2"
+  region = "us-east-2"
 }
 
 
-# Get Default VPC
+# DATA SOURCES (DEFAULT VPC + SUBNETS)
+
 
 data "aws_vpc" "default" {
   default = true
 }
-
-
-# Get Subnets from Default VPC
 
 data "aws_subnets" "default" {
   filter {
@@ -29,28 +26,40 @@ data "aws_subnets" "default" {
   }
 }
 
+data "aws_ami" "amazon_linux_1" {
+  most_recent = true
+  owners      = ["amazon"]
 
-# Security Group (HTTP + SSH)
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+}
 
-resource "aws_security_group" "web_sg" {
-  name        = "dev-web-sg"
-  description = "Allow HTTP and SSH"
-  vpc_id      = data.aws_vpc.default.id
+data "aws_ami" "amazon_linux_2" {
+  provider    = aws.use2
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+}
+
+
+# SECURITY GROUPS
+
+
+resource "aws_security_group" "sg_use1" {
+  name   = "sg-use1"
+  vpc_id = data.aws_vpc.default.id
 
   ingress {
-    description = "HTTP"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "SSH"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] #  Restrict in production
   }
 
   egress {
@@ -59,165 +68,320 @@ resource "aws_security_group" "web_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+}
 
-  tags = {
-    Name = "dev-web-sg"
+resource "aws_security_group" "sg_use2" {
+  provider = aws.use2
+  name     = "sg-use2"
+  vpc_id   = data.aws_vpc.default.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
 
-# EC2 Instance (Web Server)
+# USER DATA (YOUR HTML DASHBOARD)
 
-resource "aws_instance" "web" {
-  ami           = data.aws_ami.amazon_linux.id
-  instance_type = "t2.micro"
 
-  subnet_id = data.aws_subnets.default.ids[0]
-
-  vpc_security_group_ids = [aws_security_group.web_sg.id]
-
+locals {
   user_data = <<-EOF
-              #!/bin/bash
-              dnf update -y
-              dnf install -y httpd
+#!/bin/bash
+dnf update -y
+dnf install -y httpd
 
-              systemctl start httpd
-              systemctl enable httpd
+systemctl start httpd
+systemctl enable httpd
 
-              cat <<HTML > /var/www/html/index.html
-              <!DOCTYPE html>
-              <html lang="en">
-              <head>
-                  <meta charset="UTF-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                  <title>AWS Services Dashboard</title>
-                  <style>
-                      body {
-                          margin: 0;
-                          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                          background: linear-gradient(135deg, #1f4037, #99f2c8);
-                          color: #333;
-                      }
+REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
 
-                      .container {
-                          max-width: 1000px;
-                          margin: 50px auto;
-                          background: #ffffff;
-                          padding: 30px;
-                          border-radius: 12px;
-                          box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-                      }
+cat <<HTML > /var/www/html/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS Services Dashboard</title>
 
-                      h1 {
-                          text-align: center;
-                          color: #232f3e;
-                          margin-bottom: 10px;
-                          letter-spacing: 1px;
-                      }
+<style>
+body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(135deg, #0f2027, #2c5364);
+}
 
-                      p {
-                          text-align: center;
-                          color: #555;
-                          margin-bottom: 20px;
-                          font-size: 16px;
-                      }
+.container {
+    max-width: 1100px;
+    margin: 50px auto;
+    background: rgba(255,255,255,0.95);
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
 
-                      .badge {
-                          text-align: center;
-                          font-weight: bold;
-                          color: #1f4037;
-                          margin-bottom: 20px;
-                      }
+h1 {
+    text-align: center;
+    color: #232f3e;
+}
 
-                      table {
-                          width: 100%;
-                          border-collapse: collapse;
-                          border-radius: 10px;
-                          overflow: hidden;
-                      }
+.badge {
+    text-align: center;
+    color: #ff9900;
+    font-weight: bold;
+}
 
-                      th {
-                          background: #232f3e;
-                          color: white;
-                          padding: 14px;
-                          text-align: left;
-                      }
+.engineer {
+    text-align: center;
+    margin: 10px 0;
+}
 
-                      td {
-                          padding: 12px;
-                          border-bottom: 1px solid #ddd;
-                      }
+.region {
+    text-align: center;
+    font-weight: bold;
+    color: #2c5364;
+    margin-bottom: 10px;
+}
 
-                      tr:nth-child(even) {
-                          background-color: #f9f9f9;
-                      }
+.search-box {
+    margin: 20px 0;
+    text-align: center;
+}
 
-                      tr:hover {
-                          background-color: #e6f2ff;
-                          transition: 0.3s;
-                      }
+.search-box input {
+    width: 60%;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+}
 
-                      footer {
-                          text-align: center;
-                          margin-top: 20px;
-                          font-size: 12px;
-                          color: #777;
-                      }
-                  </style>
-              </head>
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
 
-              <body>
-                  <div class="container">
-                      <h1>AWS Services Overview</h1>
+th {
+    background: #232f3e;
+    color: white;
+    padding: 12px;
+}
 
-                      <div class="badge">
-                          DevOps Automation • Infrastructure as Code • Cloud Deployment
-                      </div>
+td {
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+}
 
-                      <p>
-                          This web server was automatically provisioned using Terraform in Amazon Web Services (AWS).
-                          It demonstrates Infrastructure as Code (IaC) by deploying a fully functional web server
-                          that dynamically presents core AWS services and their benefits.
-                      </p>
+tr:hover {
+    background-color: #e3f2fd;
+}
 
-                      <table>
-                          <tr>
-                              <th>Service</th>
-                              <th>Description</th>
-                              <th>Key Benefit</th>
-                          </tr>
+.service img {
+    width: 22px;
+    vertical-align: middle;
+    margin-right: 10px;
+}
+</style>
+</head>
 
-                          <tr><td>EC2</td><td>Elastic Compute Cloud</td><td>Scalable virtual servers</td></tr>
-                          <tr><td>S3</td><td>Simple Storage Service</td><td>Highly durable object storage</td></tr>
-                          <tr><td>RDS</td><td>Relational Database Service</td><td>Managed SQL databases</td></tr>
-                          <tr><td>DynamoDB</td><td>NoSQL Database</td><td>Ultra-fast and serverless</td></tr>
-                          <tr><td>EKS</td><td>Kubernetes Service</td><td>Managed container orchestration</td></tr>
-                          <tr><td>ECS</td><td>Container Service</td><td>Simple container management</td></tr>
-                          <tr><td>Lambda</td><td>Serverless Compute</td><td>No server management</td></tr>
-                          <tr><td>VPC</td><td>Virtual Private Cloud</td><td>Network isolation</td></tr>
-                          <tr><td>CloudWatch</td><td>Monitoring Service</td><td>Logs and metrics tracking</td></tr>
-                          <tr><td>IAM</td><td>Identity Management</td><td>Secure access control</td></tr>
-                          <tr><td>CloudFront</td><td>CDN</td><td>Global content delivery</td></tr>
-                          <tr><td>Route 53</td><td>DNS Service</td><td>Highly available domain routing</td></tr>
-                      </table>
+<body>
+<div class="container">
+    <h1>AWS Services Dashboard</h1>
 
-                      <footer>
-                          Deployed via Terraform | DevOps Automation Demo
-                      </footer>
-                  </div>
-              </body>
-              </html>
-              HTML
-              EOF
+    <div class="badge">
+        DevOps Automation • Infrastructure as Code • Cloud Engineering
+    </div>
+
+    <div class="engineer">
+        Engineered by <strong>Moges Kebedew</strong>
+    </div>
+
+    <div class="region">
+        Served from region: <span id="region">${REGION}</span>
+    </div>
+
+    <table>
+        <tr>
+            <th>Service</th>
+            <th>Description</th>
+            <th>Benefit</th>
+        </tr>
+
+        <tr>
+            <td><img src="https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/PNG/Light/Compute/Amazon-EC2_light-bg.png">EC2</td>
+            <td>Elastic Compute Cloud</td>
+            <td>Scalable servers</td>
+        </tr>
+
+        <tr>
+            <td><img src="https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/PNG/Light/Storage/Amazon-S3_light-bg.png">S3</td>
+            <td>Object Storage</td>
+            <td>Highly durable storage</td>
+        </tr>
+    </table>
+</div>
+</body>
+</html>
+HTML
+EOF
+}
+
+
+# EC2 INSTANCES
+
+
+resource "aws_instance" "ec2_use1" {
+  ami                    = data.aws_ami.amazon_linux_1.id
+  instance_type          = "t3.micro"
+  subnet_id              = data.aws_subnets.default.ids[0]
+  vpc_security_group_ids = [aws_security_group.sg_use1.id]
+
+  user_data = local.user_data
 
   tags = {
-    Name = "dev-web-server"
+    Name = "ec2-us-east-1"
+  }
+}
+
+resource "aws_instance" "ec2_use2" {
+  provider               = aws.use2
+  ami                    = data.aws_ami.amazon_linux_2.id
+  instance_type          = "t3.micro"
+  subnet_id              = data.aws_subnets.default.ids[0]
+  vpc_security_group_ids = [aws_security_group.sg_use2.id]
+
+  user_data = local.user_data
+
+  tags = {
+    Name = "ec2-us-east-2"
   }
 }
 
 
-# Output
+# ALB - US EAST 1
 
-output "web_url" {
-  value = "http://${aws_instance.web.public_ip}"
+
+resource "aws_lb" "alb_use1" {
+  name               = "alb-use1"
+  load_balancer_type = "application"
+  subnets            = data.aws_subnets.default.ids
+  security_groups    = [aws_security_group.sg_use1.id]
+}
+
+resource "aws_lb_target_group" "tg_use1" {
+  name     = "tg-use1"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+}
+
+resource "aws_lb_target_group_attachment" "attach_use1" {
+  target_group_arn = aws_lb_target_group.tg_use1.arn
+  target_id        = aws_instance.ec2_use1.id
+  port             = 80
+}
+
+resource "aws_lb_listener" "listener_use1" {
+  load_balancer_arn = aws_lb.alb_use1.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tg_use1.arn
+  }
+}
+
+
+# ALB - US EAST 2
+
+
+resource "aws_lb" "alb_use2" {
+  provider           = aws.use2
+  name               = "alb-use2"
+  load_balancer_type = "application"
+  subnets            = data.aws_subnets.default.ids
+  security_groups    = [aws_security_group.sg_use2.id]
+}
+
+resource "aws_lb_target_group" "tg_use2" {
+  provider = aws.use2
+  name     = "tg-use2"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = data.aws_vpc.default.id
+}
+
+resource "aws_lb_target_group_attachment" "attach_use2" {
+  provider         = aws.use2
+  target_group_arn = aws_lb_target_group.tg_use2.arn
+  target_id        = aws_instance.ec2_use2.id
+  port             = 80
+}
+
+resource "aws_lb_listener" "listener_use2" {
+  provider          = aws.use2
+  load_balancer_arn = aws_lb.alb_use2.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.tg_use2.arn
+  }
+}
+
+
+# GLOBAL ACCELERATOR
+
+
+resource "aws_globalaccelerator_accelerator" "ga" {
+  name            = "multi-region-ga"
+  ip_address_type = "IPV4"
+  enabled         = true
+}
+
+resource "aws_globalaccelerator_listener" "ga_listener" {
+  accelerator_arn = aws_globalaccelerator_accelerator.ga.id
+  protocol        = "TCP"
+
+  port_range {
+    from_port = 80
+    to_port   = 80
+  }
+}
+
+resource "aws_globalaccelerator_endpoint_group" "eg_use1" {
+  listener_arn = aws_globalaccelerator_listener.ga_listener.id
+
+  endpoint_configuration {
+    endpoint_id = aws_lb.alb_use1.arn
+    weight      = 100
+  }
+}
+
+resource "aws_globalaccelerator_endpoint_group" "eg_use2" {
+  listener_arn = aws_globalaccelerator_listener.ga_listener.id
+
+  endpoint_configuration {
+    endpoint_id = aws_lb.alb_use2.arn
+    weight      = 100
+  }
+}
+
+
+# OUTPUT
+
+
+output "global_accelerator_dns" {
+  value = aws_globalaccelerator_accelerator.ga.dns_name
 }
