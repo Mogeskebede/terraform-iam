@@ -1,4 +1,4 @@
-# DATA SOURCES
+# DATA SOURCES 
 
 data "aws_vpc" "default" {
   default = true
@@ -46,8 +46,8 @@ data "aws_ami" "amazon_linux_2" {
   }
 }
 
-
 # SECURITY GROUPS
+
 
 resource "aws_security_group" "sg_use1" {
   name   = "use1-sg"
@@ -71,7 +71,7 @@ resource "aws_security_group" "sg_use1" {
 resource "aws_security_group" "use2_sg" {
   provider = aws.use2
   name     = "use2-sg"
-  vpc_id   = data.aws_vpc.default_use2.id   
+  vpc_id   = data.aws_vpc.default_use2.id
 
   ingress {
     from_port   = 80
@@ -88,8 +88,7 @@ resource "aws_security_group" "use2_sg" {
   }
 }
 
-
-# USER DATA (UNCHANGED LOGIC, FIXED ESCAPING)
+# USER DATA (IMPROVED UI)
 
 locals {
   user_data = <<-EOF
@@ -100,41 +99,100 @@ dnf install -y httpd
 systemctl start httpd
 systemctl enable httpd
 
-REGION=$(curl -s http://169.254.169.254/latest/meta-data/placement/region)
-
 cat <<HTML > /var/www/html/index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AWS Services Overview - Moges Kebedew</title>
+<title>AWS Services Overview</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
 <style>
-body { margin:0; font-family:Arial; background:linear-gradient(135deg,#1f4037,#99f2c8); color:#fff;}
-.container { max-width:1100px; margin:40px auto; background:#fff; color:#222; padding:30px; border-radius:16px;}
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px;}
-.card { background:#fff; padding:18px; border-radius:12px; cursor:pointer;}
+body {
+  margin:0;
+  font-family:Arial;
+  background: linear-gradient(135deg,#1f4037,#99f2c8);
+  color:#333;
+}
+
+.container {
+  max-width:1100px;
+  margin:50px auto;
+  background:#fff;
+  padding:30px;
+  border-radius:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.2);
+}
+
+h1 {
+  text-align:center;
+  margin-bottom:10px;
+}
+
+.subtitle {
+  text-align:center;
+  color:gray;
+  margin-bottom:30px;
+}
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:20px;
+}
+
+.card {
+  padding:20px;
+  border-radius:12px;
+  background:linear-gradient(145deg,#f9f9f9,#e6e6e6);
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.3s ease;
+}
+
+.card:hover {
+  transform:translateY(-8px) scale(1.03);
+  box-shadow:0 10px 20px rgba(0,0,0,0.15);
+}
+
+.icon {
+  font-size:30px;
+  margin-bottom:10px;
+  color:#2c7be5;
+}
+
+.name {
+  font-weight:bold;
+  font-size:18px;
+}
+
+.desc {
+  font-size:14px;
+  color:gray;
+}
 </style>
 </head>
+
 <body>
 
 <div class="container">
-<h1>AWS Services Overview</h1>
-<p>Deployed by Moges Kebedew</p>
-<div class="grid" id="serviceGrid"></div>
+  <h1>AWS Services Overview</h1>
+  <div class="subtitle">Deployed by Moges Kebedew</div>
+
+  <div class="grid" id="serviceGrid"></div>
 </div>
 
 <script>
 const services = [
- { name:"EC2", desc:"Compute", link:"https://aws.amazon.com/ec2/" },
- { name:"S3", desc:"Storage", link:"https://aws.amazon.com/s3/" },
- { name:"Lambda", desc:"Serverless", link:"https://aws.amazon.com/lambda/" }
+ { name:"EC2", desc:"Compute", icon:"fa-server", link:"https://aws.amazon.com/ec2/" },
+ { name:"S3", desc:"Storage", icon:"fa-database", link:"https://aws.amazon.com/s3/" },
+ { name:"Lambda", desc:"Serverless", icon:"fa-bolt", link:"https://aws.amazon.com/lambda/" },
+ { name:"VPC", desc:"Networking", icon:"fa-network-wired", link:"https://aws.amazon.com/vpc/" },
+ { name:"RDS", desc:"Database", icon:"fa-database", link:"https://aws.amazon.com/rds/" },
+ { name:"CloudWatch", desc:"Monitoring", icon:"fa-chart-line", link:"https://aws.amazon.com/cloudwatch/" }
 ];
-
-function getIcon(name){
- return '<b>'+name+'</b>';
-}
 
 const grid=document.getElementById("serviceGrid");
 
@@ -143,11 +201,11 @@ services.forEach(s=>{
  card.className="card";
  card.onclick=()=>window.open(s.link,"_blank");
 
- card.innerHTML=
- getIcon(s.name)+
- "<div>"+s.name+"</div>"+
- "<div>"+s.desc+"</div>";
-
+ card.innerHTML=`
+   <div class="icon"><i class="fa ${s.icon}"></i></div>
+   <div class="name">${s.name}</div>
+   <div class="desc">${s.desc}</div>
+ `;
  grid.appendChild(card);
 });
 </script>
@@ -157,7 +215,6 @@ services.forEach(s=>{
 HTML
 EOF
 }
-
 
 # EC2 INSTANCES
 
@@ -175,22 +232,14 @@ resource "aws_instance" "ec2_use2" {
   provider               = aws.use2
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = "t3.micro"
-  subnet_id              = data.aws_subnets.default_use2.ids[0]   
+  subnet_id              = data.aws_subnets.default_use2.ids[0]
   vpc_security_group_ids = [aws_security_group.use2_sg.id]
   user_data              = local.user_data
 
   tags = { Name = "ec2-us-east-2" }
 }
 
-
-# ALB - us-east-1
-
-resource "aws_lb" "alb_use1" {
-  name               = "alb-use1"
-  load_balancer_type = "application"
-  subnets            = data.aws_subnets.default.ids
-  security_groups    = [aws_security_group.sg_use1.id]
-}
+# ALB + TARGET GROUPS
 
 resource "aws_lb_target_group" "tg_use1" {
   name     = "tg-use1"
@@ -199,42 +248,8 @@ resource "aws_lb_target_group" "tg_use1" {
   vpc_id   = data.aws_vpc.default.id
 
   health_check {
-    path                = "/index.html"
-    protocol            = "HTTP"
-    matcher             = "200"
-    interval            = 30
-    timeout             = 5
-    healthy_threshold   = 2
-    unhealthy_threshold = 2
+    path = "/"
   }
-}
-
-resource "aws_lb_target_group_attachment" "attach_use1" {
-  target_group_arn = aws_lb_target_group.tg_use1.arn
-  target_id        = aws_instance.ec2_use1.id
-  port             = 80
-}
-
-resource "aws_lb_listener" "listener_use1" {
-  load_balancer_arn = aws_lb.alb_use1.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg_use1.arn
-  }
-}
-
-
-# ALB - us-east-2
-
-resource "aws_lb" "alb_use2" {
-  provider           = aws.use2
-  name               = "alb-use2"
-  load_balancer_type = "application"
-  subnets            = data.aws_subnets.default_use2.ids   
-  security_groups    = [aws_security_group.use2_sg.id]
 }
 
 resource "aws_lb_target_group" "tg_use2" {
@@ -242,29 +257,12 @@ resource "aws_lb_target_group" "tg_use2" {
   name     = "tg-use2"
   port     = 80
   protocol = "HTTP"
-  vpc_id   = data.aws_vpc.default_use2.id   
-}
+  vpc_id   = data.aws_vpc.default_use2.id
 
-resource "aws_lb_target_group_attachment" "attach_use2" {
-  provider         = aws.use2
-  target_group_arn = aws_lb_target_group.tg_use2.arn
-  target_id        = aws_instance.ec2_use2.id
-  port             = 80
-}
-
-resource "aws_lb_listener" "listener_use2" {
-  provider          = aws.use2
-  load_balancer_arn = aws_lb.alb_use2.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.tg_use2.arn
+  health_check {
+    path = "/"
   }
 }
-
-
 # GLOBAL ACCELERATOR
 
 resource "aws_globalaccelerator_accelerator" "ga" {
