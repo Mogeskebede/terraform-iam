@@ -10,86 +10,94 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                echo "Stage: Checkout Repository"
+                echo "STAGE: Checkout Repository"
 
                 git branch: 'main', url: 'https://github.com/Mogeskebede/terraform-iam.git'
 
-                echo "Repository checkout completed"
+                echo "Repository checkout completed successfully"
             }
         }
 
-        stage('Get AWS Credentials') {
+        stage('Get AWS Credentials & Fetch Secrets') {
             steps {
-                echo "Stage: Fetch AWS Credentials"
+                echo "STAGE: Fetch AWS Credentials from Jenkins & Retrieve Secret"
 
-                script {
-                    def secret = bat(
-                        script: """
-                        aws secretsmanager get-secret-value ^
-                        --secret-id %SECRET_ID% ^
-                        --region %AWS_REGION% ^
-                        --query SecretString ^
-                        --output text
-                        """,
-                        returnStdout: true
-                    ).trim()
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AKIAUBKFCSQ5BHPEYILU']]) {
+                    script {
+                        echo "AWS credentials injected from Jenkins"
 
-                    echo "Secret retrieved successfully"
+                        echo "Calling AWS Secrets Manager to retrieve secret: ${SECRET_ID}"
 
-                    def creds = readJSON text: secret
+                        def secret = bat(
+                            script: """
+                            aws secretsmanager get-secret-value ^
+                            --secret-id %SECRET_ID% ^
+                            --region %AWS_REGION% ^
+                            --query SecretString ^
+                            --output text
+                            """,
+                            returnStdout: true
+                        ).trim()
 
-                    env.AWS_ACCESS_KEY_ID     = creds.AWS_ACCESS_KEY_ID
-                    env.AWS_SECRET_ACCESS_KEY = creds.AWS_SECRET_ACCESS_KEY
-                    env.AWS_DEFAULT_REGION    = creds.AWS_DEFAULT_REGION
+                        echo "Secret retrieved successfully from AWS Secrets Manager"
 
-                    echo "AWS credentials set in environment"
+                        def creds = readJSON text: secret
+
+                        echo "Parsing secret JSON"
+
+                        env.AWS_ACCESS_KEY_ID     = creds.AWS_ACCESS_KEY_ID
+                        env.AWS_SECRET_ACCESS_KEY = creds.AWS_SECRET_ACCESS_KEY
+                        env.AWS_DEFAULT_REGION    = creds.AWS_DEFAULT_REGION ?: env.AWS_REGION
+
+                        echo "AWS credentials and region set as environment variables"
+                    }
                 }
             }
         }
 
         stage('Terraform Init') {
             steps {
-                echo "Stage: Terraform Init"
+                echo "STAGE: Terraform Init"
 
                 bat 'terraform init'
 
-                echo "Terraform init completed"
+                echo "Terraform initialization completed"
             }
         }
 
         stage('Terraform Format Check') {
             steps {
-                echo "Stage: Terraform Format Check"
+                echo "STAGE: Terraform Format Check"
 
                 bat 'terraform fmt -check -recursive'
 
-                echo "Terraform formatting check passed"
+                echo "Terraform formatting check completed"
             }
         }
 
         stage('Terraform Validate') {
             steps {
-                echo "Stage: Terraform Validate"
+                echo "STAGE: Terraform Validate"
 
                 bat 'terraform validate'
 
-                echo "Terraform validation successful"
+                echo "Terraform validation completed successfully"
             }
         }
 
         stage('Terraform Plan') {
             steps {
-                echo "Stage: Terraform Plan"
+                echo "STAGE: Terraform Plan"
 
                 bat 'terraform plan -out=tfplan'
 
-                echo "Terraform plan generated"
+                echo "Terraform plan generated successfully"
             }
         }
 
         stage('Terraform Apply') {
             steps {
-                echo "Stage: Terraform Apply"
+                echo "STAGE: Terraform Apply"
 
                 bat 'terraform apply -auto-approve tfplan'
 
@@ -101,16 +109,16 @@ pipeline {
     post {
         success {
             echo "PIPELINE RESULT: SUCCESS"
-            echo "All stages completed successfully."
+            echo "All stages completed successfully"
         }
 
         failure {
             echo "PIPELINE RESULT: FAILURE"
-            echo "One or more stages failed. Check logs above."
+            echo "One or more stages failed. Review logs above."
         }
 
         always {
-            echo "Pipeline execution finished."
+            echo "Pipeline execution finished"
         }
     }
 }
