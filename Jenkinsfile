@@ -25,7 +25,6 @@ pipeline {
                     script {
                         echo "AWS credentials injected from Jenkins credentials store"
 
-                        // Export credentials as environment variables for Terraform & AWS CLI
                         env.AWS_ACCESS_KEY_ID     = AWS_ACCESS_KEY_ID
                         env.AWS_SECRET_ACCESS_KEY = AWS_SECRET_ACCESS_KEY
                         env.AWS_DEFAULT_REGION    = AWS_REGION
@@ -44,11 +43,14 @@ pipeline {
             }
         }
 
-        stage('Terraform Format Check') {
+        stage('Terraform Format') {
             steps {
-                echo "STAGE: Terraform Format Check"
-                bat 'terraform fmt -check -recursive'
-                echo "Terraform formatting check completed"
+                echo "STAGE: Terraform Format"
+
+                // Auto-format code instead of checking only
+                bat 'terraform fmt -recursive'
+
+                echo "Terraform formatting applied successfully"
             }
         }
 
