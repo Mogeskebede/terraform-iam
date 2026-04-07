@@ -1,6 +1,7 @@
 
 # VPC + NETWORKING (us-east-1)
 
+
 resource "aws_vpc" "use1" {
   cidr_block           = "10.10.0.0/16"
   enable_dns_support   = true
@@ -45,8 +46,8 @@ resource "aws_subnet" "use1_private_b" {
 }
 
 resource "aws_eip" "use1_nat_eip" {
-  vpc  = true
-  tags = { Name = "use1-nat-eip" }
+  domain = "vpc"
+  tags   = { Name = "use1-nat-eip" }
 }
 
 resource "aws_nat_gateway" "use1_nat" {
@@ -117,19 +118,19 @@ resource "aws_internet_gateway" "use2_igw" {
 }
 
 resource "aws_subnet" "use2_public_a" {
-  provider               = aws.use2
-  vpc_id                 = aws_vpc.use2.id
-  cidr_block             = "10.20.1.0/24"
-  availability_zone      = "us-east-2a"
+  provider                = aws.use2
+  vpc_id                  = aws_vpc.use2.id
+  cidr_block              = "10.20.1.0/24"
+  availability_zone       = "us-east-2a"
   map_public_ip_on_launch = true
   tags = { Name = "use2-public-a" }
 }
 
 resource "aws_subnet" "use2_public_b" {
-  provider               = aws.use2
-  vpc_id                 = aws_vpc.use2.id
-  cidr_block             = "10.20.2.0/24"
-  availability_zone      = "us-east-2b"
+  provider                = aws.use2
+  vpc_id                  = aws_vpc.use2.id
+  cidr_block              = "10.20.2.0/24"
+  availability_zone       = "us-east-2b"
   map_public_ip_on_launch = true
   tags = { Name = "use2-public-b" }
 }
@@ -152,7 +153,7 @@ resource "aws_subnet" "use2_private_b" {
 
 resource "aws_eip" "use2_nat_eip" {
   provider = aws.use2
-  vpc      = true
+  domain   = "vpc"
   tags     = { Name = "use2-nat-eip" }
 }
 
