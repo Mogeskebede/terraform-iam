@@ -81,7 +81,7 @@ pipeline {
         stage('Terraform destroy') {
             steps {
                 echo "STAGE: Terraform destroy"
-                bat 'terraform destroy -auto-approve tfplan'
+                bat 'terraform destroy -auto-approve'
                 echo "Terraform destroy completed successfully"
             }
         }
