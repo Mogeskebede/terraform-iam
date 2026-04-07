@@ -1,4 +1,6 @@
+
 # DATA SOURCES
+
 
 data "aws_vpc" "default" {
   default = true
@@ -9,31 +11,19 @@ data "aws_vpc" "default_use2" {
   default  = true
 }
 
-# Public subnets in us-east-1
-data "aws_subnets" "public_use1" {
+data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
-
-  filter {
-    name   = "map-public-ip-on-launch"
-    values = ["true"]
-  }
 }
 
-# Public subnets in us-east-2
-data "aws_subnets" "public_use2" {
+data "aws_subnets" "default_use2" {
   provider = aws.use2
 
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default_use2.id]
-  }
-
-  filter {
-    name   = "map-public-ip-on-launch"
-    values = ["true"]
   }
 }
 
@@ -248,8 +238,9 @@ EOF
 resource "aws_instance" "ec2_use1" {
   ami                    = data.aws_ami.amazon_linux_1.id
   instance_type          = "t3.micro"
-  subnet_id              = data.aws_subnets.public_use1.ids[0]
+  subnet_id              = data.aws_subnets.default.ids[0]
   vpc_security_group_ids = [aws_security_group.sg_use1.id]
+  associate_public_ip_address = true
   user_data              = local.user_data
 
   tags = { Name = "ec2-us-east-1" }
@@ -259,8 +250,9 @@ resource "aws_instance" "ec2_use2" {
   provider               = aws.use2
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = "t3.micro"
-  subnet_id              = data.aws_subnets.public_use2.ids[0]
+  subnet_id              = data.aws_subnets.default_use2.ids[0]
   vpc_security_group_ids = [aws_security_group.use2_sg.id]
+  associate_public_ip_address = true
   user_data              = local.user_data
 
   tags = { Name = "ec2-us-east-2" }
@@ -273,7 +265,7 @@ resource "aws_instance" "ec2_use2" {
 resource "aws_lb" "alb_use1" {
   name               = "alb-use1"
   load_balancer_type = "application"
-  subnets            = data.aws_subnets.public_use1.ids
+  subnets            = data.aws_subnets.default.ids
   security_groups    = [aws_security_group.sg_use1.id]
 }
 
@@ -281,7 +273,7 @@ resource "aws_lb" "alb_use2" {
   provider           = aws.use2
   name               = "alb-use2"
   load_balancer_type = "application"
-  subnets            = data.aws_subnets.public_use2.ids
+  subnets            = data.aws_subnets.default_use2.ids
   security_groups    = [aws_security_group.use2_sg.id]
 }
 
@@ -375,6 +367,7 @@ resource "aws_lb_listener" "listener_use2" {
 
 # GLOBAL ACCELERATOR
 
+
 resource "aws_globalaccelerator_accelerator" "ga" {
   name            = "multi-region-ga"
   ip_address_type = "IPV4"
@@ -412,6 +405,7 @@ resource "aws_globalaccelerator_endpoint_group" "eg_use2" {
 
 
 # OUTPUT
+
 
 output "global_accelerator_dns" {
   value = aws_globalaccelerator_accelerator.ga.dns_name
