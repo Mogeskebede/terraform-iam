@@ -1,6 +1,4 @@
-
 # DATA SOURCES
-
 
 data "aws_vpc" "default" {
   default = true
@@ -11,19 +9,31 @@ data "aws_vpc" "default_use2" {
   default  = true
 }
 
-data "aws_subnets" "default" {
+# Public subnets in us-east-1
+data "aws_subnets" "public_use1" {
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default.id]
   }
+
+  filter {
+    name   = "map-public-ip-on-launch"
+    values = ["true"]
+  }
 }
 
-data "aws_subnets" "default_use2" {
+# Public subnets in us-east-2
+data "aws_subnets" "public_use2" {
   provider = aws.use2
 
   filter {
     name   = "vpc-id"
     values = [data.aws_vpc.default_use2.id]
+  }
+
+  filter {
+    name   = "map-public-ip-on-launch"
+    values = ["true"]
   }
 }
 
@@ -92,7 +102,7 @@ resource "aws_security_group" "use2_sg" {
 }
 
 
-# USER DATA (FULLY FIXED)
+# USER DATA (WITH HEALTH ENDPOINT + EXTENDED SERVICES)
 
 
 locals {
@@ -181,27 +191,47 @@ h1 { text-align:center; }
 
 <script>
 const services = [
- { name:"EC2", desc:"Compute", icon:"fa-server", link:"https://aws.amazon.com/ec2/" },
- { name:"S3", desc:"Storage", icon:"fa-database", link:"https://aws.amazon.com/s3/" },
- { name:"Lambda", desc:"Serverless", icon:"fa-bolt", link:"https://aws.amazon.com/lambda/" },
- { name:"VPC", desc:"Networking", icon:"fa-network-wired", link:"https://aws.amazon.com/vpc/" },
- { name:"RDS", desc:"Database", icon:"fa-database", link:"https://aws.amazon.com/rds/" },
- { name:"CloudWatch", desc:"Monitoring", icon:"fa-chart-line", link:"https://aws.amazon.com/cloudwatch/" }
+ { name:"EC2",           desc:"Virtual servers in the cloud",          icon:"fa-server",        link:"https://aws.amazon.com/ec2/" },
+ { name:"S3",            desc:"Object storage service",                icon:"fa-database",      link:"https://aws.amazon.com/s3/" },
+ { name:"Lambda",        desc:"Serverless compute",                    icon:"fa-bolt",          link:"https://aws.amazon.com/lambda/" },
+ { name:"VPC",           desc:"Isolated cloud networks",               icon:"fa-network-wired", link:"https://aws.amazon.com/vpc/" },
+ { name:"RDS",           desc:"Managed relational databases",          icon:"fa-database",      link:"https://aws.amazon.com/rds/" },
+ { name:"DynamoDB",      desc:"NoSQL key-value database",              icon:"fa-table",         link:"https://aws.amazon.com/dynamodb/" },
+ { name:"API Gateway",   desc:"Managed API endpoints",                 icon:"fa-plug",          link:"https://aws.amazon.com/api-gateway/" },
+ { name:"ECS",           desc:"Container orchestration",               icon:"fa-boxes-stacked", link:"https://aws.amazon.com/ecs/" },
+ { name:"EKS",           desc:"Managed Kubernetes",                    icon:"fa-boxes-stacked", link:"https://aws.amazon.com/eks/" },
+ { name:"CloudFront",    desc:"Content delivery network",              icon:"fa-globe",         link:"https://aws.amazon.com/cloudfront/" },
+ { name:"Route 53",      desc:"DNS and traffic management",            icon:"fa-location-arrow",link:"https://aws.amazon.com/route53/" },
+ { name:"IAM",           desc:"Identity and access management",        icon:"fa-user-shield",   link:"https://aws.amazon.com/iam/" },
+ { name:"CloudWatch",    desc:"Monitoring and observability",          icon:"fa-chart-line",    link:"https://aws.amazon.com/cloudwatch/" },
+ { name:"CloudTrail",    desc:"API activity logging",                  icon:"fa-shoe-prints",   link:"https://aws.amazon.com/cloudtrail/" },
+ { name:"SNS",           desc:"Pub/Sub notifications",                 icon:"fa-bell",          link:"https://aws.amazon.com/sns/" },
+ { name:"SQS",           desc:"Message queuing",                       icon:"fa-envelope",      link:"https://aws.amazon.com/sqs/" },
+ { name:"Kinesis",       desc:"Real-time data streaming",              icon:"fa-wave-square",   link:"https://aws.amazon.com/kinesis/" },
+ { name:"Redshift",      desc:"Data warehousing",                      icon:"fa-database",      link:"https://aws.amazon.com/redshift/" },
+ { name:"ElastiCache",   desc:"In-memory caching",                     icon:"fa-memory",        link:"https://aws.amazon.com/elasticache/" },
+ { name:"Elastic Beanstalk", desc:"PaaS for web apps",                 icon:"fa-leaf",          link:"https://aws.amazon.com/elasticbeanstalk/" },
+ { name:"WAF",           desc:"Web application firewall",              icon:"fa-shield-halved", link:"https://aws.amazon.com/waf/" },
+ { name:"Shield",        desc:"DDoS protection",                       icon:"fa-shield",        link:"https://aws.amazon.com/shield/" },
+ { name:"Glue",          desc:"Serverless data integration",           icon:"fa-broom",         link:"https://aws.amazon.com/glue/" },
+ { name:"Step Functions",desc:"Serverless workflows",                  icon:"fa-diagram-project",link:"https://aws.amazon.com/step-functions/" },
+ { name:"Secrets Manager",desc:"Secure secret storage",                icon:"fa-key",           link:"https://aws.amazon.com/secrets-manager/" },
+ { name:"KMS",           desc:"Key management service",                icon:"fa-lock",          link:"https://aws.amazon.com/kms/" }
 ];
 
-const grid=document.getElementById("serviceGrid");
+const grid = document.getElementById("serviceGrid");
 
-services.forEach(s=>{
- const card=document.createElement("div");
- card.className="card";
- card.onclick=()=>window.open(s.link,"_blank");
+services.forEach(s => {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.onclick = () => window.open(s.link, "_blank");
 
- card.innerHTML = `
-   <div class="icon"><i class="fa $${s.icon}"></i></div>
-   <div class="name">$${s.name}</div>
-   <div class="desc">$${s.desc}</div>
- `;
- grid.appendChild(card);
+  card.innerHTML = `
+    <div class="icon"><i class="fa $${s.icon}"></i></div>
+    <div class="name">$${s.name}</div>
+    <div class="desc">$${s.desc}</div>
+  `;
+  grid.appendChild(card);
 });
 </script>
 
@@ -218,7 +248,7 @@ EOF
 resource "aws_instance" "ec2_use1" {
   ami                    = data.aws_ami.amazon_linux_1.id
   instance_type          = "t3.micro"
-  subnet_id              = data.aws_subnets.default.ids[0]
+  subnet_id              = data.aws_subnets.public_use1.ids[0]
   vpc_security_group_ids = [aws_security_group.sg_use1.id]
   user_data              = local.user_data
 
@@ -229,7 +259,7 @@ resource "aws_instance" "ec2_use2" {
   provider               = aws.use2
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = "t3.micro"
-  subnet_id              = data.aws_subnets.default_use2.ids[0]
+  subnet_id              = data.aws_subnets.public_use2.ids[0]
   vpc_security_group_ids = [aws_security_group.use2_sg.id]
   user_data              = local.user_data
 
@@ -243,7 +273,7 @@ resource "aws_instance" "ec2_use2" {
 resource "aws_lb" "alb_use1" {
   name               = "alb-use1"
   load_balancer_type = "application"
-  subnets            = data.aws_subnets.default.ids
+  subnets            = data.aws_subnets.public_use1.ids
   security_groups    = [aws_security_group.sg_use1.id]
 }
 
@@ -251,12 +281,12 @@ resource "aws_lb" "alb_use2" {
   provider           = aws.use2
   name               = "alb-use2"
   load_balancer_type = "application"
-  subnets            = data.aws_subnets.default_use2.ids
+  subnets            = data.aws_subnets.public_use2.ids
   security_groups    = [aws_security_group.use2_sg.id]
 }
 
 
-# TARGET GROUPS (FIXED HEALTH CHECKS)
+# TARGET GROUPS
 
 
 resource "aws_lb_target_group" "tg_use1" {
@@ -345,7 +375,6 @@ resource "aws_lb_listener" "listener_use2" {
 
 # GLOBAL ACCELERATOR
 
-
 resource "aws_globalaccelerator_accelerator" "ga" {
   name            = "multi-region-ga"
   ip_address_type = "IPV4"
@@ -383,7 +412,6 @@ resource "aws_globalaccelerator_endpoint_group" "eg_use2" {
 
 
 # OUTPUT
-
 
 output "global_accelerator_dns" {
   value = aws_globalaccelerator_accelerator.ga.dns_name
