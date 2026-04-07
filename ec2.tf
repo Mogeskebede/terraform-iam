@@ -197,6 +197,16 @@ resource "aws_lb_target_group" "tg_use1" {
   port     = 80
   protocol = "HTTP"
   vpc_id   = data.aws_vpc.default.id
+
+  health_check {
+    path                = "/index.html"
+    protocol            = "HTTP"
+    matcher             = "200"
+    interval            = 30
+    timeout             = 5
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+  }
 }
 
 resource "aws_lb_target_group_attachment" "attach_use1" {
@@ -274,7 +284,12 @@ resource "aws_globalaccelerator_listener" "ga_listener" {
 }
 
 resource "aws_globalaccelerator_endpoint_group" "eg_use1" {
+  provider     = aws
   listener_arn = aws_globalaccelerator_listener.ga_listener.id
+
+  health_check_protocol = "HTTP"
+  health_check_port     = 80
+  health_check_path     = "/"
 
   endpoint_configuration {
     endpoint_id = aws_lb.alb_use1.arn
@@ -283,8 +298,12 @@ resource "aws_globalaccelerator_endpoint_group" "eg_use1" {
 }
 
 resource "aws_globalaccelerator_endpoint_group" "eg_use2" {
-  provider    = aws.use2   
+  provider     = aws.use2
   listener_arn = aws_globalaccelerator_listener.ga_listener.id
+
+  health_check_protocol = "HTTP"
+  health_check_port     = 80
+  health_check_path     = "/"
 
   endpoint_configuration {
     endpoint_id = aws_lb.alb_use2.arn
