@@ -1,73 +1,70 @@
 pipeline {
-agent any
+    agent any
 
-```
-environment {
-    AWS_REGION = 'us-east-2'
-    SECRET_ID  = 'terraform/aws/jenkins'
-}
-
-stages {
-
-    stage('Checkout') {
-        steps {
-            git 'https://github.com/Mogeskebede/terraform-iam.git'
-        }
+    environment {
+        AWS_REGION = 'us-east-2'
+        SECRET_ID  = 'terraform/aws/jenkins'
     }
 
-    stage('Get AWS Credentials') {
-        steps {
-            script {
-                def secret = sh(
-                    script: """
-                    aws secretsmanager get-secret-value \
-                    --secret-id ${SECRET_ID} \
-                    --region ${AWS_REGION} \
-                    --query SecretString \
-                    --output text
-                    """,
-                    returnStdout: true
-                ).trim()
+    stages {
 
-                def creds = readJSON text: secret
+        stage('Checkout') {
+            steps {
+                git 'https://github.com/Mogeskebede/terraform-iam.git'
+            }
+        }
 
-                env.AWS_ACCESS_KEY_ID     = creds.AWS_ACCESS_KEY_ID
-                env.AWS_SECRET_ACCESS_KEY = creds.AWS_SECRET_ACCESS_KEY
-                env.AWS_DEFAULT_REGION    = creds.AWS_DEFAULT_REGION
+        stage('Get AWS Credentials') {
+            steps {
+                script {
+                    def secret = sh(
+                        script: """
+                        aws secretsmanager get-secret-value \
+                        --secret-id ${SECRET_ID} \
+                        --region ${AWS_REGION} \
+                        --query SecretString \
+                        --output text
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    def creds = readJSON text: secret
+
+                    env.AWS_ACCESS_KEY_ID     = creds.AWS_ACCESS_KEY_ID
+                    env.AWS_SECRET_ACCESS_KEY = creds.AWS_SECRET_ACCESS_KEY
+                    env.AWS_DEFAULT_REGION    = creds.AWS_DEFAULT_REGION
+                }
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                sh 'terraform init'
+            }
+        }
+
+        stage('Terraform Format Check') {
+            steps {
+                sh 'terraform fmt -check -recursive'
+            }
+        }
+
+        stage('Terraform Validate') {
+            steps {
+                sh 'terraform validate'
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                sh 'terraform plan -out=tfplan'
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                sh 'terraform apply -auto-approve tfplan'
             }
         }
     }
-
-    stage('Terraform Init') {
-        steps {
-            sh 'terraform init'
-        }
-    }
-
-    stage('Terraform Format Check') {
-        steps {
-            sh 'terraform fmt -check -recursive'
-        }
-    }
-
-    stage('Terraform Validate') {
-        steps {
-            sh 'terraform validate'
-        }
-    }
-
-    stage('Terraform Plan') {
-        steps {
-            sh 'terraform plan -out=tfplan'
-        }
-    }
-
-    stage('Terraform Apply') {
-        steps {
-            sh 'terraform apply -auto-approve tfplan'
-        }
-    }
-}
-```
-
 }
