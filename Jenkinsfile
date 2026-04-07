@@ -77,7 +77,7 @@ pipeline {
                 echo "Terraform apply completed successfully"
             }
         }
-    }
+    
         stage('Terraform destroy') {
             steps {
                 echo "STAGE: Terraform destroy"
