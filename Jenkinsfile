@@ -22,7 +22,7 @@ pipeline {
             steps {
                 echo "STAGE: Fetch AWS Credentials from Jenkins & Retrieve Secret"
 
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AKIAUBKFCSQ5BHPEYILU']]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'AWS_Credentials']]) {
                     script {
                         echo "AWS credentials injected from Jenkins"
 
