@@ -38,7 +38,7 @@ data "aws_ami" "amazon_linux_2" {
 
 
 resource "aws_security_group" "sg_use1" {
-  name   = "sg-use1"
+  name   = "use1-sg"
   vpc_id = data.aws_vpc.default.id
 
   ingress {
@@ -56,7 +56,7 @@ resource "aws_security_group" "sg_use1" {
   }
 }
 
-resource "aws_security_group" "sg_use2" {
+resource "aws_security_group" "use2-sg" {
   provider = aws.use2
   name     = "sg-use2"
   vpc_id   = data.aws_vpc.default.id
@@ -95,129 +95,146 @@ cat <<HTML > /var/www/html/index.html
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AWS Services Dashboard</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AWS Services Overview - Moges Kebedew</title>
 
 <style>
-body {
-    margin: 0;
-    font-family: 'Segoe UI', sans-serif;
-    background: linear-gradient(135deg, #0f2027, #2c5364);
-}
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: linear-gradient(135deg, #1f4037, #99f2c8);
+        color: #fff;
+    }
 
-.container {
-    max-width: 1100px;
-    margin: 50px auto;
-    background: rgba(255,255,255,0.95);
-    padding: 30px;
-    border-radius: 16px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-}
+    .container {
+        max-width: 1100px;
+        margin: 40px auto;
+        background: rgba(255,255,255,0.95);
+        color: #222;
+        border-radius: 16px;
+        padding: 30px;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
 
-h1 {
-    text-align: center;
-    color: #232f3e;
-}
+    h1 {
+        text-align: center;
+        margin-bottom: 5px;
+    }
 
-.badge {
-    text-align: center;
-    color: #ff9900;
-    font-weight: bold;
-}
+    p.subtitle {
+        text-align: center;
+        color: #555;
+        margin-bottom: 25px;
+    }
 
-.engineer {
-    text-align: center;
-    margin: 10px 0;
-}
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+    }
 
-.region {
-    text-align: center;
-    font-weight: bold;
-    color: #2c5364;
-    margin-bottom: 10px;
-}
+    .card {
+        background: #ffffff;
+        border-radius: 12px;
+        padding: 18px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        transition: 0.3s ease;
+        cursor: pointer;
+        border: 1px solid #eee;
+    }
 
-.search-box {
-    margin: 20px 0;
-    text-align: center;
-}
+    .card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
 
-.search-box input {
-    width: 60%;
-    padding: 10px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 16px;
-}
+    .icon {
+        width: 50px;
+        height: 50px;
+        margin-bottom: 10px;
+    }
 
-table {
-    width: 100%;
-    border-collapse: collapse;
-}
+    .name {
+        font-weight: bold;
+        margin-bottom: 5px;
+    }
 
-th {
-    background: #232f3e;
-    color: white;
-    padding: 12px;
-}
+    .desc {
+        font-size: 13px;
+        color: #666;
+    }
 
-td {
-    padding: 12px;
-    border-bottom: 1px solid #ddd;
-}
-
-tr:hover {
-    background-color: #e3f2fd;
-}
-
-.service img {
-    width: 22px;
-    vertical-align: middle;
-    margin-right: 10px;
-}
+    .footer {
+        text-align: center;
+        margin-top: 25px;
+        font-size: 12px;
+        color: #777;
+    }
 </style>
 </head>
 
 <body>
+
 <div class="container">
-    <h1>AWS Services Dashboard</h1>
+    <h1>AWS Services Overview</h1>
+    <p class="subtitle">
+        DevOps Automation • Infrastructure as Code • Cloud Deployment <br/>
+        Deployed by <b>Moges Kebedew</b>
+    </p>
 
-    <div class="badge">
-        DevOps Automation • Infrastructure as Code • Cloud Engineering
+    <div class="grid" id="serviceGrid"></div>
+
+    <div class="footer">
+        Deployed via Terraform on AWS EC2 • Interactive DevOps Dashboard
     </div>
-
-    <div class="engineer">
-        Engineered by <strong>Moges Kebedew</strong>
-    </div>
-
-    <div class="region">
-        Served from region: <span id="region">${REGION}</span>
-    </div>
-
-    <table>
-        <tr>
-            <th>Service</th>
-            <th>Description</th>
-            <th>Benefit</th>
-        </tr>
-
-        <tr>
-            <td><img src="https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/PNG/Light/Compute/Amazon-EC2_light-bg.png">EC2</td>
-            <td>Elastic Compute Cloud</td>
-            <td>Scalable servers</td>
-        </tr>
-
-        <tr>
-            <td><img src="https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v14.0/PNG/Light/Storage/Amazon-S3_light-bg.png">S3</td>
-            <td>Object Storage</td>
-            <td>Highly durable storage</td>
-        </tr>
-    </table>
 </div>
+
+<script>
+const services = [
+    { name: "EC2", desc: "Elastic Compute Cloud", link: "https://aws.amazon.com/ec2/" },
+    { name: "S3", desc: "Simple Storage Service", link: "https://aws.amazon.com/s3/" },
+    { name: "RDS", desc: "Relational Database Service", link: "https://aws.amazon.com/rds/" },
+    { name: "DynamoDB", desc: "NoSQL Database", link: "https://aws.amazon.com/dynamodb/" },
+    { name: "EKS", desc: "Kubernetes Service", link: "https://aws.amazon.com/eks/" },
+    { name: "ECS", desc: "Container Service", link: "https://aws.amazon.com/ecs/" },
+    { name: "Lambda", desc: "Serverless Compute", link: "https://aws.amazon.com/lambda/" },
+    { name: "VPC", desc: "Virtual Private Cloud", link: "https://aws.amazon.com/vpc/" },
+    { name: "CloudWatch", desc: "Monitoring Service", link: "https://aws.amazon.com/cloudwatch/" },
+    { name: "IAM", desc: "Identity Management", link: "https://aws.amazon.com/iam/" },
+    { name: "CloudFront", desc: "CDN Service", link: "https://aws.amazon.com/cloudfront/" },
+    { name: "Route 53", desc: "DNS Service", link: "https://aws.amazon.com/route53/" }
+];
+
+// Simple AWS-style inline SVG icon generator
+function getIcon(name) {
+    return `
+    <svg class="icon" viewBox="0 0 24 24" fill="none">
+        <rect x="3" y="3" width="18" height="18" rx="4" fill="#FF9900"/>
+        <text x="50%" y="55%" text-anchor="middle" fill="white" font-size="7" font-family="Arial">${name}</text>
+    </svg>`;
+}
+
+const grid = document.getElementById("serviceGrid");
+
+services.forEach(s => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.onclick = () => window.open(s.link, "_blank");
+
+    card.innerHTML = `
+        ${getIcon(s.name)}
+        <div class="name">${s.name}</div>
+        <div class="desc">${s.desc}</div>
+    `;
+
+    grid.appendChild(card);
+});
+</script>
+
 </body>
 </html>
-HTML
 EOF
 }
 
@@ -243,7 +260,7 @@ resource "aws_instance" "ec2_use2" {
   ami                    = data.aws_ami.amazon_linux_2.id
   instance_type          = "t3.micro"
   subnet_id              = data.aws_subnets.default.ids[0]
-  vpc_security_group_ids = [aws_security_group.sg_use2.id]
+  vpc_security_group_ids = [aws_security_group.use2-sg.id]
 
   user_data = local.user_data
 
@@ -296,7 +313,7 @@ resource "aws_lb" "alb_use2" {
   name               = "alb-use2"
   load_balancer_type = "application"
   subnets            = data.aws_subnets.default.ids
-  security_groups    = [aws_security_group.sg_use2.id]
+  security_groups    = [aws_security_group.use2-sg.id]
 }
 
 resource "aws_lb_target_group" "tg_use2" {
