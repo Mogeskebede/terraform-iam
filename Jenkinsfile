@@ -78,13 +78,13 @@ pipeline {
             }
         }
     
-        // stage('Terraform destroy') {
-        //     steps {
-        //         echo "STAGE: Terraform destroy"
-        //         bat 'terraform destroy -auto-approve'
-        //         echo "Terraform destroy completed successfully"
-        //     }
-        // }
+        stage('Terraform destroy') {
+            steps {
+                echo "STAGE: Terraform destroy"
+                bat 'terraform destroy -auto-approve'
+                echo "Terraform destroy completed successfully"
+            }
+        }
     }
 
     post {
