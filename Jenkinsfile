@@ -78,6 +78,14 @@ pipeline {
             }
         }
     }
+        stage('Terraform destroy') {
+            steps {
+                echo "STAGE: Terraform destroy"
+                bat 'terraform destroy -auto-approve tfplan'
+                echo "Terraform destroy completed successfully"
+            }
+        }
+    }
 
     post {
         success {
