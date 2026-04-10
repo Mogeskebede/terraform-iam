@@ -71,20 +71,20 @@ pipeline {
         }
 
         stage('Terraform Apply') {
-            steps {
-                echo "STAGE: Terraform Apply"
-                bat 'terraform apply -auto-approve tfplan'
-                echo "Terraform apply completed successfully"
-            }
-        }
-    
-        // stage('Terraform destroy') {
         //     steps {
-        //         echo "STAGE: Terraform destroy"
-        //         bat 'terraform destroy -auto-approve'
-        //         echo "Terraform destroy completed successfully"
+        //         echo "STAGE: Terraform Apply"
+        //         bat 'terraform apply -auto-approve tfplan'
+        //         echo "Terraform apply completed successfully"
         //     }
         // }
+    
+        stage('Terraform destroy') {
+            steps {
+                echo "STAGE: Terraform destroy"
+                bat 'terraform destroy -auto-approve'
+                echo "Terraform destroy completed successfully"
+            }
+        }
     }
 
     post {
