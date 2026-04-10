@@ -47,7 +47,7 @@ pipeline {
             steps {
                 echo "STAGE: Terraform Format"
 
-                // Auto-format code instead of checking only
+                // Auto-format code instead of checking
                 bat 'terraform fmt -recursive'
 
                 echo "Terraform formatting applied successfully"
