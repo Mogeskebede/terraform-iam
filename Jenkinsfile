@@ -70,8 +70,8 @@ pipeline {
             }
         }
 
-        stage('Terraform Apply') {
-        //     steps {
+        // stage('Terraform Apply') {
+        // //     steps {
         //         echo "STAGE: Terraform Apply"
         //         bat 'terraform apply -auto-approve tfplan'
         //         echo "Terraform apply completed successfully"
